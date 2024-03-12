@@ -1,3 +1,4 @@
+Sahibinden için tampermonkey scripti.
 
 [Yükle](https://github.com/mortyobnoxious/Sahibinden/raw/main/sahibinden.user.js)
 
