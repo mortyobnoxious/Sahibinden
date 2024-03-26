@@ -35,7 +35,7 @@ bilgiler:
 
 
 - favoriye eklenen araçlar eklendiği fiyatla birlikte tarayıcınıza kaydediliyor.
-maalesef fiyat geçmişini görebilmek ve güncellemek için arada ilan sayfasına girmeniz lazım. ilan sayfasına her girildiğinde fiyat değişmişse o da kaydediliyor.
+fiyat geçmişini güncellemek için güncelle butonuna tıklayıp fiyatlarda değişim olmuş mu olmamış mı kaydedebilirsiniz. ilan sayfasına her girildiğinde fiyat değişmişse o da kaydediliyor.
 ekran görüntüsündeki gibi fiyat geçmişi olarak gösteriliyor.
 
 fiyat değişimi yeşil kırmızı olarak görünüyor.
