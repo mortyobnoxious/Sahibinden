@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sahibinden
 // @namespace    Morty
-// @version      20240324
+// @version      20240326
 // @description  a userscript by Morty
 // @author       Morty
 // @match        *://*.sahibinden.com/*
@@ -29,14 +29,14 @@ GM_addStyle (`
 .extrainfo.ph {flex-direction: column;}
 .extrainfo.ph > div {display: flex;justify-content: space-between;width: 100%;}
 .extrainfo.ph > div > span {flex: 1;text-align: center;}
-.extrainfo.ph h3 {display: flex;justify-content: center;width: 100%;}
+.extrainfo.ph h3 {display: flex;justify-content: center;align-items: center;width: 100%;}
 .extrainfo.ph h3 span {font-size: 11px;margin-left: auto;}
 .infdivider {display: block;height: 1px;border: 0;border-top: 1px solid #dfdfdf;margin: 1em 0;padding: 0;}
 .infdivider.lp {margin: 5px 0;}
 .extrainfo.elinks .deleteit {border-color: #BE1E2D;outline: 1px solid #BE1E2D;transition: all .3s !important;}
 .fixedset {position: fixed;left: 45px;bottom: 45px;display: flex;gap: 1rem;}
 .faves {width: 100%;display: flex;flex-direction: column;}
-.faveitem {display: flex;flex-direction: column-reverse;justify-content: space-between;}
+.faveitem {display: flex;flex-direction: column-reverse;justify-content: space-between;position:relative;}
 .faveitem .extrainfo.elinks {align-items: start;margin-top: 10px;}
 .faves .faveit {color: #8798A5;}
 .faves .extrainfo.elinks a, .faves .extrainfo.elinks button {border: 1px solid #243447;color: #8798A5;}
@@ -67,11 +67,21 @@ GM_addStyle (`
 .popupMS button:hover {background: #1b2836;cursor: pointer;transition: all .3s;}
 .popupMS select {cursor: pointer;}
 .popupMS select option {background: #1b2836;}
-#sortselect, .sortby, #searchpopup {padding: 5px 10px !important;margin: 5px 0;}
+#sortselect, .sortby, #searchpopup, .updateP {padding: 5px 10px !important;margin: 5px 0;}
 .popupMS button:hover, .popupMS input:focus, .popupMS select:focus, .popupMS textarea:focus, .popupMS select:hover {background: #1b2836;transition: all .3s;outline: none;}
-`);
+#setForm {display: flex;flex-direction: column;gap: 10px;width: 100%;}
+#setForm div {display: flex;align-items: center;gap: 10px;}
+#setForm div label {width: 10%;}
+#setForm div input {width: 90%;}
+.pchanged {position: absolute;right: 0;bottom: 45%;font-size: 2rem;text-align: center;justify-content: center;align-items: center;border: 1px solid #243447;border-radius: 8px;display: flex;flex-direction: column;padding: 3px 5px;}
+.pchanged .pd {font-size: 12px;}
 
-// https://www.sahibinden.com/ajax/classified/1155623258/loadPriceInfoWithHistory
+@keyframes spinner {from {transform: rotate(0turn);} to {transform: rotate(1turn);}}
+.vihi {visibility: hidden;opacity: 0;}
+.editing {position:relative;pointer-events: none;}
+.editing::before {content: "";position: absolute;width: 20px;height: 20px;top: 0;left: 0;right: 0;bottom: 0;margin: auto;border: 2px solid transparent;border-top-color: #A9894F;border-radius: 50%;animation: spinner 1s ease infinite;}
+.editing::after {content: attr(data-c);position: absolute;left: 8px;top: 6px;}
+`);
 
 const parser = new DOMParser();
 
@@ -94,6 +104,17 @@ function createPopup(title, div, eb="") {
       popup.remove();
     }
   });
+}
+
+// add spinner on clicked button
+function spin(el, addRemove=true) {
+	if(addRemove) {
+		$(el).addClass('editing');
+		$(el).find('span').addClass('vihi');
+	} else {
+		$(el).removeClass('editing');
+		$(el).find('span').removeClass('vihi');
+	}
 }
 
 function getXML(url, rt = false) {
@@ -244,11 +265,12 @@ data.history[0].price = data.price;
 return data
 }
 
-function updatePrice(id) {
+function updatePrice(id, p=false) {
     let ind = retIndex(id);
     let data = bookmarksGM.values[ind] || getData();
-    if (data.history[data.history.length - 1]?.price !== getData().price) {
-        data.history.push({ date: new Date().getTime(), price: getData().price });
+    let price = p || getData().price;
+    if (data.history[data.history.length - 1]?.price !== price) {
+        data.history.push({ date: new Date().getTime(), price: price });
         bookmarksGM.modify(ind, data);
     }
 }
@@ -257,8 +279,8 @@ updatePrice(getData().id)
 
 function deleteRemoved(){
     if($('.no-result-description').length) {
-        const queryText = new URLSearchParams(window.location.search).get('query_text');
-        let ind = retIndex(queryText);
+        let id = new URLSearchParams(window.location.search).get('query_text');
+        let ind = retIndex(id);
         if (ind == -1) return
         bookmarksGM.modify(ind);
         $('.no-result-description').append(`<div>Favorilerden silindi!</div>`)
@@ -303,6 +325,7 @@ ${all?`<hr class="infdivider">`:''}
 <h4>${price}</h4>
 <small><strong>$</strong> ${rdy(price, dolar)}</small>
 <small><strong>€</strong> ${rdy(price, euro)}</small>
+<small title="Bütçen"><strong></strong> ${rpd(price, settingsGM.values[settingsGM.findIndex("id", "settings")].butce||0)}</small>
 </div>
 <div class="shortinfo">
 <div><h3>${!all?`<img src="https://www.carlogos.org/car-logos/${data.brand.toLowerCase()}-logo.png">`:``}${data.brand} ${data.seri} ${data.model}</h3></div>
@@ -320,12 +343,12 @@ ${data.ah?`<div>${data.ah}</div>`:''}
 </div>
 ${all && history ? `<hr class="infdivider">
 <div class="extrainfo ph">
-<h3>Fiyat Geçmişi${history.length>1?`<span>${rpd(history[0].price, price)} TL</span>`:''}</h3>
+<h3>Fiyat Geçmişi${history.length>1?`<span>${rpd(history[0].price, price).replace(/^\+0+$/, "0")} TL</span>`:''}</h3>
 <table><tbody>${history.map(entry => {
     const previousEntry = history[history.indexOf(entry) - 1];
     let cl = '';
     if (previousEntry) {cl = entry.price > previousEntry.price ? 'up' : 'down';}
-    return `<tr><td><strong>${entry.price}</strong></td><td class="${cl}"><span>➤</span></td><td>${dD(entry.date)}</td><td>${new Date(entry.date).toLocaleDateString('tr', {year: 'numeric', month: 'short', day: 'numeric'})}</td></tr>`;
+    return `<tr><td><strong>${entry.price}</strong></td><td class="${cl}"><span>➤</span></td><td title="${dD(entry.date)}">${dD(entry.date, false, 1)}</td><td>${new Date(entry.date).toLocaleDateString('tr', {year: 'numeric', month: 'short', day: 'numeric'})}</td></tr>`;
 }).join('')}</tbody></table>` : ''}
 `
 }
@@ -340,10 +363,12 @@ appendThings()
 function appendFaves() {
 	let divs = "";
 	$.each(bookmarksGM.values, function(index, value) {
-		divs += `<div class="faveitem" data-id="${value.id}" data-price="${value.price}" data-km="${value.km}" data-year="${value.year}" data-date="${value.date}" data-brand="${value.brand}" data-city="${value.city}">${createDivs(value, false)}</div>`
+        let price = value.history[value.history.length - 1]?.price;
+		divs += `<div class="faveitem" data-id="${value.id}" data-price="${price}" data-km="${value.km}" data-year="${value.year}" data-date="${value.date}" data-brand="${value.brand}" data-city="${value.city}">${createDivs(value, false)}</div>`
 	});
 	let faves = `<div class="faves">${divs}</div>`
-    let input = `<select name="sortselect" id="sortselect">
+    let input = `<button class="updateP" title="Fiyatları Güncelle"><span>⟳</span></button>
+<select name="sortselect" id="sortselect">
     <option value="">Sırala</option>
     <option value="price">Fiyat</option>
     <option value="km">KM</option>
@@ -355,6 +380,41 @@ function appendFaves() {
 <input type="text" id="searchpopup" placeholder="ara..." autocomplete="off"/>`
     createPopup("🔖 Favoriler", faves, input)
 }
+
+//
+$(document).on('click', '.updateP', function(e){
+	e.preventDefault();
+    $('#sortselect option:first').prop('selected', true).trigger('change');
+	var thisis = $(this);
+	spin(thisis);
+	var len = $('.faveitem').length;
+	$('.faveitem').each(function(i){
+		var _this = $(this);
+		var id = $(_this).attr('data-id');
+		let ind = retIndex(id);
+		var a = bookmarksGM.values[ind];
+		setTimeout(function(){
+			getXML(`https://www.sahibinden.com/ajax/classified/${id}/loadPriceInfoWithHistory`, true).then(function(data) {
+                data = JSON.parse(data);
+                let p = data.data.realPrice.toLocaleString('tr') + " TL";
+                let pd = rpd(a.history[a.history.length - 1].price, p)
+                let cl = pd < 0 ? "down" : pd > 0 ? "up" : "";
+                let de = data.passiveClassifiedInfo ? true : false;
+				$(thisis).attr('data-c',++i);
+                $(_this).append(`<span class="pchanged"><span class="${cl}" data-del="${de}">➤</span><span class="pd">${pd.replace(/^\+0+$/, "-")}</span></span>`);
+                if (cl !== "") { updatePrice(id, p) }
+                console.log(p, pd, cl, de)
+                document.querySelector(`.faveitem[data-id="${id}"]`).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+			});
+		}, i*1200);
+
+		if (i == len-1) {
+			setTimeout(function(){
+				spin(thisis, false);
+            },len*1200+1);
+        }
+	});
+});
 
 function sortBy(sortel) {
   let faveitem = $(`.faveitem`);
@@ -414,7 +474,7 @@ $(document).on('click', '.deleteit', function(e){
     appendFaves()
 });
 $(document).on('click', '.copyinf', function(e){
-    let inf = `${getData().price}\n\n${$('.shortinfo').text().replace(/:/g, ': ').replace('B/D', 'Boya/Değişen').replace(/^.*null.*$/gm, '').replace(/\n[^\S\n]*\n/g, '\n').trim()}\n\nLink: https://www.sahibinden.com/kelime-ile-arama?query_text=${getData().id}`
+    let inf = `${getData().price}\n\n${$('.shortinfo').text().replace(/:/g, ': ').replace('B/D', 'Boya/Değişen').replace(/^.*null.*$/gm, '').replace(/\n[^\S\n]*\n/g, '\n').trim()}\n\nLink: https://sahibinden.com/${getData().id}`
     navigator.clipboard.writeText(inf)
         .then(() => {
             $('.copyinf').text('Kopyalandı!')
@@ -434,10 +494,27 @@ $(document).on('click', '.allfaves', function(e){
     appendFaves()
 });
 $(document).on('click', '.fsettings', function(e){
+    let ind = settingsGM.findIndex("id", "settings")
+    let { butce, deneme, diger} = settingsGM.values[ind] || {};
+
  let div = `
-<div><label for="butce">Bütçe</label><input name="butce" type="number" placeholder="Bütçeni gir"></div>
+<form id="setForm" class="inputs">
+<div><label for="butce">Bütçe</label><input id="butce" name="butce" type="number" value="${butce || ''}" placeholder="Bütçeni gir"></div>
+<div><label for="deneme">Deneme</label><input id="deneme" name="deneme" type="text" value="${deneme || ''}" placeholder="Deneme"></div>
+<div><label for="diger">Diğer</label><input id="diger" name="diger" type="text" value="${diger || ''}" placeholder="Diğer"></div>
+</form>
  `
  createPopup("⚙️ Ayarlar", div)
+});
+
+$(document).on('input', '#setForm input', function(e){
+  let formData = $('#setForm').serializeArray();
+  let data = {id: "settings"};
+  formData.forEach(function(input) {
+    data[input.name] = input.value;
+  });
+  let ind = settingsGM.findIndex("id", "settings");
+  settingsGM.modify(ind, data);
 });
 
 $(document).on('mousedown', '.faveitem .extrainfo', function(e){
