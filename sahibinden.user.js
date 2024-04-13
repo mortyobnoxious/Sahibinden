@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Sahibinden
 // @namespace    Morty
-// @version      20240326
+// @version      20240424
 // @description  a userscript by Morty
 // @author       Morty
 // @match        *://*.sahibinden.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=sahibinden.com
+// @downloadURL  https://github.com/mortyobnoxious/Sahibinden/raw/main/sahibinden.user.js
+// @updateURL    https://github.com/mortyobnoxious/Sahibinden/raw/main/sahibinden.user.js
 // @require      https://code.jquery.com/jquery-3.7.1.min.js
 // @grant        GM_addStyle
 // @grant        GM_setValue
@@ -26,14 +28,14 @@ GM_addStyle (`
 .extrainfo.elinks img {width: 16px;}
 .extrainfo.elinks a, .extrainfo.elinks button, .fixedset button {flex:1;padding: 5px 10px;background: transparent;border: 1px solid #dfdfdf;border-radius: 4px;cursor: pointer;box-shadow: none;}
 .extrainfo.elinks a:hover, .extrainfo.elinks button:hover, .fixedset button:hover {background: #dfdfdf!important;transition: all .3s !important;text-decoration: none;}
-.extrainfo.ph {flex-direction: column;}
+.extrainfo.ph {flex-direction: column;max-height: 200px;overflow-y: scroll;}
 .extrainfo.ph > div {display: flex;justify-content: space-between;width: 100%;}
 .extrainfo.ph > div > span {flex: 1;text-align: center;}
 .extrainfo.ph h3 {display: flex;justify-content: center;align-items: center;width: 100%;}
 .extrainfo.ph h3 span {font-size: 11px;margin-left: auto;}
 .infdivider {display: block;height: 1px;border: 0;border-top: 1px solid #dfdfdf;margin: 1em 0;padding: 0;}
 .infdivider.lp {margin: 5px 0;}
-.extrainfo.elinks .deleteit {border-color: #BE1E2D;outline: 1px solid #BE1E2D;transition: all .3s !important;}
+.deleteit {border-color: #BE1E2D!important;outline: 1px solid #BE1E2D;transition: all .3s !important;cursor:pointer;}
 .fixedset {position: fixed;left: 45px;bottom: 45px;display: flex;gap: 1rem;}
 .faves {width: 100%;display: flex;flex-direction: column;}
 .faveitem {display: flex;flex-direction: column-reverse;justify-content: space-between;position:relative;}
@@ -321,7 +323,7 @@ ${data.phone?`<a class="btn btn-flat btn-link" href="https://wa.me/+9${data.phon
 ${all?`<hr class="infdivider">`:''}
 <div class="extrainfo shinfo">
 <div class="imgp">
-<img src="${all?`https://www.carlogos.org/car-logos/${data.brand.replace(' ','-').replace('DS Automobiles','DS').toLowerCase()}-logo.png`:`${data.img}`}">
+<img src="${all?`https://www.carlogos.org/car-logos/${data.brand.replace('DS Automobiles','DS').replace(' ','-').toLowerCase()}-logo.png`:`${data.img}`}">
 <h4>${price}</h4>
 <small><strong>$</strong> ${rdy(price, dolar)}</small>
 <small><strong>€</strong> ${rdy(price, euro)}</small>
@@ -344,8 +346,8 @@ ${data.ah?`<div>${data.ah}</div>`:''}
 ${all && history ? `<hr class="infdivider">
 <div class="extrainfo ph">
 <h3>Fiyat Geçmişi${history.length>1?`<span>${rpd(history[0].price, price).replace(/^\+0+$/, "0")} TL</span>`:''}</h3>
-<table><tbody>${history.map(entry => {
-    const previousEntry = history[history.indexOf(entry) - 1];
+<table><tbody>${history.reverse().map(entry => {
+    const previousEntry = history[history.indexOf(entry) + 1];
     let cl = '';
     if (previousEntry) {cl = entry.price > previousEntry.price ? 'up' : 'down';}
     return `<tr><td><strong>${entry.price}</strong></td><td class="${cl}"><span>➤</span></td><td title="${dD(entry.date)}">${dD(entry.date, false, 1)}</td><td>${new Date(entry.date).toLocaleDateString('tr', {year: 'numeric', month: 'short', day: 'numeric'})}</td></tr>`;
@@ -399,9 +401,9 @@ $(document).on('click', '.updateP', function(e){
                 let p = data.data.realPrice.toLocaleString('tr') + " TL";
                 let pd = rpd(a.history[a.history.length - 1].price, p)
                 let cl = pd < 0 ? "down" : pd > 0 ? "up" : "";
-                let de = data.passiveClassifiedInfo ? true : false;
+                let de = data.data.passiveClassifiedInfo ? true : false;
 				$(thisis).attr('data-c',++i);
-                $(_this).append(`<span class="pchanged"><span class="${cl}" data-del="${de}">➤</span><span class="pd">${pd.replace(/^\+0+$/, "-")}</span></span>`);
+                $(_this).append(`<span class="pchanged${de?' deleteit':''}" data-id="${id}"><span class="${cl}" data-del="${de}">${de?'×':'➤'}</span><span class="pd">${pd.replace(/^\+0+$/, "-")}</span></span>`);
                 if (cl !== "") { updatePrice(id, p) }
                 console.log(p, pd, cl, de)
                 document.querySelector(`.faveitem[data-id="${id}"]`).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
